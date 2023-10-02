@@ -2,6 +2,8 @@ import { Construct } from 'constructs';
 import { HttpApi } from "@aws-cdk/aws-apigatewayv2-alpha";
 import { HttpLambdaIntegration } from '@aws-cdk/aws-apigatewayv2-integrations-alpha';
 import { HttpMethod } from "aws-cdk-lib/aws-stepfunctions-tasks";
+import { Rule, RuleTargetInput, Schedule } from "aws-cdk-lib/aws-events";
+
 
 import * as path from 'path';
 
@@ -59,14 +61,32 @@ export class HelloWorldNuxtLambdaStack extends cdk.Stack {
             timeout: cdk.Duration.seconds(15),
             environment: {
                 'NUXT_APP_CDN_URL': `https://${assetsDeployment.deployedBucket.bucketDomainName}`
-            }
+            },
+            tracing: lambda.Tracing.ACTIVE
         });
 
         // Connect gateway to Lambda
         appGateway.addRoutes({
             integration: new HttpLambdaIntegration(`${this.prefix}-integration`, appLambda),
             path: '/{proxy+}',
-            methods: [HttpMethod.GET, HttpMethod.HEAD],
+            methods: [HttpMethod.GET, HttpMethod.HEAD]
         });
+
+        // Pinger lambda
+        const pinger = new cdk.aws_lambda_nodejs.NodejsFunction(this, 'pinger', {
+            description: 'Pings the Nuxt app to measure cold start',
+            timeout: cdk.Duration.seconds(30),
+            runtime: lambda.Runtime.NODEJS_18_X,
+            environment: {
+                'NUXT_APP_URL': appGateway.url!
+            }
+        });
+        const pingRule = new Rule(this, `${this.prefix}-pinger-rule`, {
+            ruleName: `${this.prefix}-pinger`,
+            description: 'Triggers the pinger lambda ',
+            enabled: true,
+            schedule: Schedule.rate(cdk.Duration.minutes(30)),
+        });
+        pingRule.addTarget(new cdk.aws_events_targets.LambdaFunction(pinger));
     }
 }

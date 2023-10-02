@@ -22,6 +22,8 @@
     "dependencies": {
         "@aws-cdk/aws-apigatewayv2-alpha": "^2.97.0-alpha.0",
         "@aws-cdk/aws-apigatewayv2-integrations-alpha": "^2.97.0-alpha.0",
+        "@types/aws-lambda": "^8.10.122",
+        "esbuild": "^0.19.4",
         "source-map-support": "^0.5.21"
     }
 }
